@@ -1,10 +1,12 @@
 import sys
+import torch.cuda.nvtx as nvtx
 sys.path.append(r"D:\CS336\assignment2-systems")
 
 from cs336_basics.cs336_basics.model import BasicsTransformerLM
 from cs336_basics.cs336_basics.optimizer import AdamW, get_cosine_lr
 from cs336_basics.cs336_basics.data import get_batch
 from cs336_basics.cs336_basics.nn_utils import *
+from cs336_systems.profiling import annotated_scaled_dot_product_attention
 import timeit
 import argparse
 import torch
@@ -38,6 +40,10 @@ def main():
             rope_theta=args.rope_theta).to(device=device)
     data = np.random.randint(0, args.vocab_size, size=args.data_size)
     
+    # Swap to annotated version for profiling
+    import cs336_basics.cs336_basics.model as model_module
+    model_module.scaled_dot_product_attention = annotated_scaled_dot_product_attention
+    
     def run_step():
         x, y = get_batch(data, batch_size=args.batch_size, context_length=args.context_length, device=args.device)
         logits = model(x)
@@ -48,14 +54,16 @@ def main():
             torch.cuda.synchronize()
     
     # Warm-up
-    for _   in range(args.warmup_steps):
-        run_step()
+    with nvtx.range("warmup"):
+        for _   in range(args.warmup_steps):
+            run_step()
     
     # Timing
-    start_time = timeit.default_timer()
-    for _ in range(args.num_steps):
-        run_step()
-    end_time = timeit.default_timer()
+    with nvtx.range("benchmark"):
+        start_time = timeit.default_timer()
+        for _ in range(args.num_steps):
+            run_step()
+        end_time = timeit.default_timer()
     
     total_time = end_time - start_time
     print(f"Time for {args.num_steps} steps: {total_time:.4f} seconds")
