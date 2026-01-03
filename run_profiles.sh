@@ -38,7 +38,7 @@ declare -A HEADS=(
 for SIZE in small medium large xl 2p7b; do
   for C in "${CTX[@]}"; do
 
-    OUT="nsys_${SIZE}_ctx${C}"
+    OUT="nsys_${SIZE}_ctx${C}_bf16"
 
     echo "=================================================="
     echo "Profiling: $SIZE | context = $C"
@@ -54,6 +54,7 @@ for SIZE in small medium large xl 2p7b; do
       python cs336_systems/benchmark.py \
         --device cuda \
         --backward \
+        --mixed_precision \
         --context_length ${C} \
         --d_model ${DMODEL[$SIZE]} \
         --d_ff ${DFF[$SIZE]} \
