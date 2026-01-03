@@ -1,6 +1,6 @@
 import sys
 import torch.cuda.nvtx as nvtx
-sys.path.append(r"D:\CS336\assignment2-systems")
+sys.path.append(r"cs336_assn2_systems")
 
 from cs336_basics.cs336_basics.model import BasicsTransformerLM
 from cs336_basics.cs336_basics.optimizer import AdamW, get_cosine_lr
@@ -30,6 +30,7 @@ def main():
     parser.add_argument("--backward", action='store_true', help="Include backward pass in timing")
     args = parser.parse_args()
     device = args.device
+    dtype = torch.float16
     model = BasicsTransformerLM(
             vocab_size=args.vocab_size, 
             context_length=args.context_length, 
@@ -45,11 +46,15 @@ def main():
     model_module.scaled_dot_product_attention = annotated_scaled_dot_product_attention
     
     def run_step():
+        optimizer = AdamW(model.parameters(), lr = 3e-4)
         x, y = get_batch(data, batch_size=args.batch_size, context_length=args.context_length, device=args.device)
-        logits = model(x)
+        with torch.autocast(device_type='cuda'):
+            logits = model(x)
         if args.backward:
             loss = cross_entropy(logits, y)
+            optimizer.zero_grad()
             loss.backward()
+            optimizer.step()
         if 'cuda' in args.device:
             torch.cuda.synchronize()
     
