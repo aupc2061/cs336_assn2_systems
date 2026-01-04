@@ -86,7 +86,7 @@ def main():
     with nvtx.range("warmup"):
         for _ in range(args.warmup_steps):
             run_step()
-
+    torch.cuda.memory._record_memory_history(max_entries=1000000)
     with nvtx.range("benchmark"):
         start = timeit.default_timer()
         for _ in range(args.num_steps):
@@ -96,7 +96,8 @@ def main():
     total_time = end - start
     print(f"Time for {args.num_steps} steps: {total_time:.4f} seconds")
     print(f"Avg time per step: {total_time / args.num_steps:.4f}s")
-
+    torch.cuda.memory._dump_snapshot("memory_snapshot.pickle")
+    torch.cuda.memory._record_memory_history(enabled=None)
 
 if __name__ == "__main__":
     main()
