@@ -1,6 +1,7 @@
 import sys
 import timeit
 import argparse
+import triton
 from contextlib import nullcontext
 import torch
 import torch.cuda.nvtx as nvtx
