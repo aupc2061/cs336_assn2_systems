@@ -1,7 +1,7 @@
 import torch
 import time
 import os
-from typing import List, Callable
+from typing import List, Iterable, Dict, Any, Tuple, Type
 import torch.nn.functional as F
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -22,6 +22,22 @@ def setup(rank, world_size):
 
 def cleanup():
     dist.destroy_process_group()
+
+class ShardedOptimizer(optim.Optimizer):
+    def __init__(self, params, optimizer_cls: Type[optim.Optimizer], **kwargs: Any):
+        defaults = kwargs  
+        params_list = list(params)
+        super().__init__(params_list, defaults)
+        self.rank = dist.get_rank()
+        self.world_size = dist.get_world_size()
+        self.local_params = [p for i, p in enumerate(params_list) if i % self.world_size == self.rank]
+        self.optimizer = optimizer_cls(self.local_params, **kwargs)
+
+    def step(self, **kwargs):
+        self.optimizer.step(**kwargs)
+        for i, p in enumerate(self.param_groups[0]['params']):
+            src = i % self.world_size
+            dist.broadcast(p.data, src=src)
 
 class DDP(nn.Module):
     def __init__(self, model: nn.Module):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Type
-from cs336_systems.ddp import DDP, DDPBucketed
+from cs336_systems.ddp import DDP, DDPBucketed, ShardedOptimizer
 import torch
 
 
@@ -140,4 +140,5 @@ def get_sharded_optimizer(params, optimizer_cls: Type[torch.optim.Optimizer], **
     Returns:
         Instance of sharded optimizer.
     """
+    return ShardedOptimizer(params=params, optimizer_cls=optimizer_cls, **kwargs)
     raise NotImplementedError
